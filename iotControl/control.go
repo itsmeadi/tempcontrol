@@ -132,7 +132,7 @@ func (tc *RoomControl) setActuator(roomID string, val int) {
 	}
 	roomActTopic := getRoomTopic(roomID)
 
-	tc.logger.Info("Writing value to models.Actuator", zap.Any("json", actJSON), zap.String("topic", roomActTopic), zap.Int("value", val))
+	tc.logger.Info("Writing value to models.Actuator", zap.String("topic", roomActTopic), zap.Int("value", val))
 	tc.actLevel.Store(roomID, val)
 	tc.client.Publish(roomActTopic, 0, false, actJSON)
 }
