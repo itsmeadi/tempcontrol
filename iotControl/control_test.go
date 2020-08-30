@@ -14,10 +14,12 @@ func TestTempControl_TempHandler(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 
-	logger, _ := zap.NewDevelopment()
+	//logger, _ := zap.NewDevelopment()
+	logger := zap.NewNop()
 	tc := &RoomControl{
 		logger:      logger,
 		desiredTemp: 22,
+		pmcEnable:   true,
 	}
 
 	cli := mock_tests.NewMockClient(ctrl)
@@ -25,6 +27,7 @@ func TestTempControl_TempHandler(t *testing.T) {
 	tc.client = cli
 	t.Run("WithoutPMC", func(t *testing.T) {
 
+		tc.pmcEnable = false
 		payL := models.Reading{
 			SensorID: "sensor-1",
 			Type:     "temperature",
@@ -36,12 +39,13 @@ func TestTempControl_TempHandler(t *testing.T) {
 		mqttMsg := mock_tests.NewMockMessage(ctrl)
 		mqttMsg.EXPECT().Payload().Return(payLBytes)
 
-		cli.EXPECT().Publish(getRoomTopic("room"), byte(0), false, resBytes)
+		cli.EXPECT().Publish(getRoomTopic("room-1"), byte(0), false, resBytes)
 
 		tc.TempHandler(nil, mqttMsg)
 	})
 	t.Run("WithPMC", func(t *testing.T) {
 
+		tc.pmcEnable = true
 		pmcPayload := models.Reading{
 			SensorID: "sensor-1",
 			Type:     "pmc",
@@ -53,14 +57,14 @@ func TestTempControl_TempHandler(t *testing.T) {
 
 		res := models.Actuator{Level: 10}
 		resBytes, _ := json.Marshal(res)
-		cli.EXPECT().Publish(getRoomTopic("room"), byte(0), false, resBytes)
+		cli.EXPECT().Publish(getRoomTopic("room-1"), byte(0), false, resBytes)
 
 		tc.PmcHandler(nil, mqttMsg)
 
 		tempPayload := models.Reading{
 			SensorID: "sensor-1",
 			Type:     "temperature",
-			Value:    25.3,
+			Value:    20.3,
 		}
 		tempPayLBytes, _ := json.Marshal(tempPayload)
 		mqttMsg = mock_tests.NewMockMessage(ctrl)

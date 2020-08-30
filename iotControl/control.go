@@ -17,11 +17,12 @@ type RoomControl struct {
 	client      mqtt.Client
 	logger      *zap.Logger
 	pmc         sync.Map
+	pmcEnable   bool
 	actLevel    sync.Map
 	desiredTemp float64
 }
 
-func NewRoomControl(clientID, urlStr string, logger *zap.Logger, desiredTemp float64) *RoomControl {
+func NewRoomControl(clientID, urlStr string, logger *zap.Logger, desiredTemp float64, pmcEnable bool) *RoomControl {
 
 	logger = logger.Named("RoomControl")
 	uri, err := url.Parse(urlStr)
@@ -34,15 +35,18 @@ func NewRoomControl(clientID, urlStr string, logger *zap.Logger, desiredTemp flo
 	for !token.WaitTimeout(3 * time.Second) {
 	}
 	if err := token.Error(); err != nil {
-		logger.Fatal("Error while Init", zap.Error(err))
+		logger.Fatal("Error while Init", zap.Error(err), zap.String("url", urlStr))
 	}
 
+	if pmcEnable {
+		logger.Info("Motion Sensor enabled, need both motion sensor and temperature reading to work")
+	}
 	logger.Info("Connected to broker successfully")
-	return &RoomControl{client: client, logger: logger, pmc: sync.Map{}, actLevel: sync.Map{}, desiredTemp: desiredTemp}
+	return &RoomControl{client: client, logger: logger, pmc: sync.Map{}, actLevel: sync.Map{}, desiredTemp: desiredTemp, pmcEnable: pmcEnable}
 }
 func (tc *RoomControl) TempHandler(client mqtt.Client, msg mqtt.Message) {
 
-	tc.logger.Info("Received new models.Reading")
+	tc.logger.Info("Received new Temperature Reading")
 	var rd models.Reading
 	payLoad := msg.Payload()
 	err := json.Unmarshal(payLoad, &rd)
@@ -50,16 +54,16 @@ func (tc *RoomControl) TempHandler(client mqtt.Client, msg mqtt.Message) {
 		tc.logger.Error("Error unmarshall Payload", zap.Error(err))
 		return
 	}
-	tc.logger.Debug("Received New models.Reading", zap.String("models.Reading", string(payLoad)))
+	tc.logger.Debug("Received New Temperature Reading", zap.String("Reading", string(payLoad)))
 	roomID := getRoomID(rd)
-	if motionSensorState, ok := tc.pmc.Load(roomID); ok {
-		if motionSensorState.(bool) {
-			actVal := tc.getNewActState(roomID, rd.Value)
-			tc.setActuator(roomID, actVal)
-			return
-		}
+	if motionSensorState, ok := tc.pmc.Load(roomID); ok && motionSensorState.(bool) || !tc.pmcEnable {
+		actVal := tc.getNewActState(roomID, rd.Value)
+		tc.setActuator(roomID, actVal)
+		return
 	}
-
+	if tc.pmcEnable {
+		tc.logger.Info("Motion Sensor shows offline, setting radiator to 0")
+	}
 	//set Thermistor state to 0 in case motion detector detects nothing
 	tc.setActuator(roomID, 0)
 }
@@ -104,7 +108,7 @@ func (tc *RoomControl) PmcHandler(client mqtt.Client, msg mqtt.Message) {
 		tc.logger.Error("Error unmarshall Payload", zap.Error(err))
 		return
 	}
-	tc.logger.Debug("Received New pmc Reading", zap.String("models.Reading", string(payLoad)))
+	tc.logger.Debug("Received New Motion Sensor Reading", zap.String("Reading", string(payLoad)))
 
 	var val bool
 	if rd.Value == 1 {
@@ -135,7 +139,7 @@ func (tc *RoomControl) setActuator(roomID string, val int) {
 
 //Find the topic for Room models.Actuator for room with `id`
 func getRoomTopic(id string) string {
-	return "/actuators/room-1"
+	return "/actuators/" + id
 }
 
 //Get room id from the models.Reading msg
