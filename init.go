@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/itsmeadi/tempcontrol/tc"
+	"github.com/itsmeadi/tempcontrol/iotControl"
 	"go.uber.org/zap"
 )
 
@@ -24,7 +24,7 @@ func main() {
 	}
 	logger.Info("Initializing...")
 
-	tempControl := tc.NewTempControl(*clientIDString, *urlString, logger, *desiredTemp)
+	tempControl := iotControl.NewRoomControl(*clientIDString, *urlString, logger, *desiredTemp)
 	tempControl.InitSubscribers(context.TODO())
 
 	sigs := make(chan os.Signal, 1)

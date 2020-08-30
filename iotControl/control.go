@@ -1,4 +1,4 @@
-package tc
+package iotControl
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type TempControl struct {
+type RoomControl struct {
 	client      mqtt.Client
 	logger      *zap.Logger
 	pmc         sync.Map
@@ -21,9 +21,9 @@ type TempControl struct {
 	desiredTemp float64
 }
 
-func NewTempControl(clientID, urlStr string, logger *zap.Logger, desiredTemp float64) *TempControl {
+func NewRoomControl(clientID, urlStr string, logger *zap.Logger, desiredTemp float64) *RoomControl {
 
-	logger = logger.Named("TempControl")
+	logger = logger.Named("RoomControl")
 	uri, err := url.Parse(urlStr)
 	if err != nil {
 		logger.Fatal("Invalid url", zap.Error(err))
@@ -38,9 +38,9 @@ func NewTempControl(clientID, urlStr string, logger *zap.Logger, desiredTemp flo
 	}
 
 	logger.Info("Connected to broker successfully")
-	return &TempControl{client: client, logger: logger, pmc: sync.Map{}, actLevel: sync.Map{}, desiredTemp: desiredTemp}
+	return &RoomControl{client: client, logger: logger, pmc: sync.Map{}, actLevel: sync.Map{}, desiredTemp: desiredTemp}
 }
-func (tc *TempControl) TempHandler(client mqtt.Client, msg mqtt.Message) {
+func (tc *RoomControl) TempHandler(client mqtt.Client, msg mqtt.Message) {
 
 	tc.logger.Info("Received new models.Reading")
 	var rd models.Reading
@@ -64,7 +64,7 @@ func (tc *TempControl) TempHandler(client mqtt.Client, msg mqtt.Message) {
 	tc.setActuator(roomID, 0)
 }
 
-func (tc *TempControl) getNewActState(roomID string, temp float64) int {
+func (tc *RoomControl) getNewActState(roomID string, temp float64) int {
 
 	var newValue, prevValue int
 	prevValueIt, ok := tc.actLevel.Load(roomID)
@@ -95,7 +95,7 @@ func min(a, b int) int {
 	}
 	return b
 }
-func (tc *TempControl) PmcHandler(client mqtt.Client, msg mqtt.Message) {
+func (tc *RoomControl) PmcHandler(client mqtt.Client, msg mqtt.Message) {
 
 	payLoad := msg.Payload()
 	var rd models.Reading
@@ -117,7 +117,7 @@ func (tc *TempControl) PmcHandler(client mqtt.Client, msg mqtt.Message) {
 	tc.pmc.Store(getRoomID(rd), val)
 }
 
-func (tc *TempControl) setActuator(roomID string, val int) {
+func (tc *RoomControl) setActuator(roomID string, val int) {
 
 	act := models.Actuator{Level: val}
 
@@ -143,7 +143,7 @@ func getRoomID(rd models.Reading) string {
 	return "room-1"
 }
 
-func (tc *TempControl) InitSubscribers(ctx context.Context) {
+func (tc *RoomControl) InitSubscribers(ctx context.Context) {
 
 	tc.client.Subscribe("/readings/temperature", 0, tc.TempHandler)
 	tc.client.Subscribe("/readings/pmc", 0, tc.PmcHandler)
