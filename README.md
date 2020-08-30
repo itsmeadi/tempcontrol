@@ -5,14 +5,30 @@ TempControl is a mqtt based app to control room temperature by changing the temp
 **Input topics:**
 
 For temperature `/readings/temperature`
+```json
+{
+     "sensorID": "sensor-1",
+     "type": "temperature",
+     "value": 25.3
+}
+```
 
 For motion sensor `/readings/pmc`
+```json
+{
+     "sensorID": "sensor-1",
+     "type": "pmc",
+     "value": 1
+}
+```
+The value can be set 0 or 1 depending on motion
 
 **Output topic:**
 
 `/actuators/<roomID>` 
 
 `/actuators/room-1` 
+
 
 **Run command**
 
