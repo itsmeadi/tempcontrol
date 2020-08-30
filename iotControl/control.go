@@ -101,7 +101,7 @@ func min(a, b int) int {
 }
 func (tc *RoomControl) PmcHandler(client mqtt.Client, msg mqtt.Message) {
 
-	if !tc.pmcEnable{
+	if !tc.pmcEnable {
 		return
 	}
 	payLoad := msg.Payload()
