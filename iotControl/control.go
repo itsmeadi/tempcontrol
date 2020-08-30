@@ -101,6 +101,9 @@ func min(a, b int) int {
 }
 func (tc *RoomControl) PmcHandler(client mqtt.Client, msg mqtt.Message) {
 
+	if !tc.pmcEnable{
+		return
+	}
 	payLoad := msg.Payload()
 	var rd models.Reading
 	err := json.Unmarshal(payLoad, &rd)
@@ -115,9 +118,9 @@ func (tc *RoomControl) PmcHandler(client mqtt.Client, msg mqtt.Message) {
 		val = true
 	} else {
 		val = false
+		tc.setActuator(getRoomID(rd), 0)
 	}
 
-	//can shutdown radiator here
 	tc.pmc.Store(getRoomID(rd), val)
 }
 
@@ -132,7 +135,7 @@ func (tc *RoomControl) setActuator(roomID string, val int) {
 	}
 	roomActTopic := getRoomTopic(roomID)
 
-	tc.logger.Info("Writing value to models.Actuator", zap.String("topic", roomActTopic), zap.Int("value", val))
+	tc.logger.Info("Writing value to Actuator", zap.String("topic", roomActTopic), zap.Int("value", val))
 	tc.actLevel.Store(roomID, val)
 	tc.client.Publish(roomActTopic, 0, false, actJSON)
 }
