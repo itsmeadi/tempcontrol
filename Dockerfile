@@ -9,7 +9,6 @@ RUN chmod +x tempcontrol
 FROM golang:latest
 WORKDIR /temp
 COPY --from=builder /go/src/temp/tempcontrol .
-COPY --from=builder /go/src/temp/startup.sh .
 
 ENTRYPOINT ["./tempcontrol"]
 
